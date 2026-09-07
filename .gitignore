@@ -1,0 +1,12 @@
+node_modules/
+.env
+.DS_Store
+.vscode/
+coverage/
+npm-debug.log
+.claude/
+*.session.sql
+*.local
+.env.*
+!.env.example
+.env

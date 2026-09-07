@@ -1,0 +1,1 @@
+Este diretório guarda recursos relacionados à API. O arquivo banco_movelaria.sql está na pasta /resources raiz do projeto.

@@ -1,0 +1,905 @@
+openapi: 3.0.0
+info:
+  title: Modelo Movelaria API
+  version: 1.0.0
+servers:
+  - url: /api
+paths:
+  /auth/login:
+    post:
+      summary: Login de funcionário
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                login:
+                  type: string
+                senha:
+                  type: string
+      responses:
+        '200':
+          description: Token JWT
+  /auth/me:
+    get:
+      summary: Dados do funcionário autenticado
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Funcionário autenticado
+
+  /statuses:
+    get:
+      summary: Catálogos de status usados pelo frontend
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Status de orçamentos, visitas e projetos
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  orcamentos:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Status'
+                  visitas:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Status'
+                  projetos:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Status'
+
+  /funcionarios:
+    post:
+      summary: Criar funcionário
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FuncionarioCreate'
+      responses:
+        '201':
+          description: Funcionário criado
+    get:
+      summary: Listar funcionários
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Lista de funcionários
+
+  /funcionarios/{id}:
+    get:
+      summary: Obter funcionário por ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Funcionário
+    put:
+      summary: Atualizar funcionário
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FuncionarioUpdate'
+      responses:
+        '204':
+          description: Atualizado
+
+  /contatos:
+    post:
+      summary: Criar contato (público)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContatoCreate'
+      responses:
+        '201':
+          description: Contato criado
+    get:
+      summary: Listar contatos
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Lista de contatos
+
+  /contatos/{id}:
+    get:
+      summary: Obter contato por ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Contato
+    put:
+      summary: Atualizar contato
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContatoUpdate'
+      responses:
+        '204':
+          description: Atualizado
+
+  /orcamentos:
+    post:
+      summary: Criar orçamento
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrcamentoCreate'
+      responses:
+        '201':
+          description: Orçamento criado
+    get:
+      summary: Listar orçamentos
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: limit
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Lista de orçamentos
+
+  /orcamentos/{id}:
+    get:
+      summary: Obter orçamento por ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Orçamento
+    put:
+      summary: Atualizar orçamento
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrcamentoUpdate'
+      responses:
+        '204':
+          description: Atualizado
+
+  /orcamentos/{id}/status:
+    patch:
+      summary: Atualizar status do orçamento
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                IDStatusOrcamento:
+                  type: integer
+      responses:
+        '200':
+          description: Status atualizado e orçamento retornado
+
+  /ambientes:
+    post:
+      summary: Criar ambiente vinculado a um orçamento
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AmbienteCreate'
+      responses:
+        '201':
+          description: Ambiente criado
+
+  /ambientes/orcamento/{id}:
+    get:
+      summary: Listar ambientes por orçamento
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Lista de ambientes
+
+  /ambientes/{id}:
+    put:
+      summary: Atualizar ambiente
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AmbienteUpdate'
+      responses:
+        '204':
+          description: Atualizado
+    delete:
+      summary: Deletar ambiente
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Deletado
+
+  /visitas:
+    post:
+      summary: Criar visita
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VisitaCreate'
+      responses:
+        '201':
+          description: Visita criada
+    get:
+      summary: Listar visitas
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Lista de visitas
+
+  /visitas/{id}:
+    get:
+      summary: Obter visita por ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Visita
+    put:
+      summary: Atualizar visita
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VisitaUpdate'
+      responses:
+        '204':
+          description: Atualizado
+    patch:
+      summary: Atualizar status da visita
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                IDStatus:
+                  type: integer
+      responses:
+        '204':
+          description: Status atualizado
+
+  /projetos:
+    post:
+      summary: Criar projeto
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjetoCreate'
+      responses:
+        '201':
+          description: Projeto criado
+    get:
+      summary: Listar projetos
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Lista de projetos
+
+  /projetos/{id}:
+    get:
+      summary: Obter projeto por ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Projeto
+    put:
+      summary: Atualizar projeto
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjetoUpdate'
+      responses:
+        '204':
+          description: Atualizado
+    patch:
+      summary: Atualizar status do projeto
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                IDStatus:
+                  type: integer
+      responses:
+        '204':
+          description: Status atualizado
+
+  /empresas:
+    post:
+      summary: Criar empresa
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmpresaCreate'
+      responses:
+        '201':
+          description: Empresa criada
+    get:
+      summary: Listar empresas
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Lista de empresas
+
+  /empresas/{id}:
+    get:
+      summary: Obter empresa por ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Empresa
+    put:
+      summary: Atualizar empresa
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmpresaUpdate'
+      responses:
+        '204':
+          description: Atualizado
+
+  /arquivos:
+    post:
+      summary: Criar registro de arquivo
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ArquivoCreate'
+      responses:
+        '201':
+          description: Arquivo criado
+    get:
+      summary: Listar arquivos
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Lista de arquivos
+
+  /arquivos/{id}:
+    get:
+      summary: Obter arquivo por ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Arquivo
+    delete:
+      summary: Deletar arquivo
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Deletado
+
+  /arquivos/orcamento/{id}:
+    get:
+      summary: Listar arquivos de um orçamento
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Lista de arquivos
+
+  /prospeccoes:
+    post:
+      summary: Criar prospecção
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProspeccaoCreate'
+      responses:
+        '201':
+          description: Prospecção criada
+    get:
+      summary: Listar prospecções
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Lista de prospecções
+
+  /prospeccoes/{id}:
+    get:
+      summary: Obter prospecção por ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Prospecção
+    put:
+      summary: Atualizar prospecção
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProspeccaoUpdate'
+      responses:
+        '204':
+          description: Atualizado
+
+  /prospeccoes/{id}/historico:
+    post:
+      summary: Criar histórico de prospecção
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HistoricoProspeccaoCreate'
+      responses:
+        '201':
+          description: Histórico criado
+    get:
+      summary: Listar histórico de prospecção
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Lista de histórico
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    Status:
+      type: object
+      properties:
+        ID:
+          type: integer
+        descricao:
+          type: string
+    Contato:
+      type: object
+      properties:
+        ID:
+          type: integer
+        nome:
+          type: string
+        telefone:
+          type: string
+        email:
+          type: string
+        origem:
+          type: string
+    Orcamento:
+      type: object
+      properties:
+        ID:
+          type: integer
+        IDContato:
+          type: integer
+        IDStatusOrcamento:
+          type: integer
+        IDFuncionario:
+          type: integer
+        NumeroOrcamento:
+          type: string
+        Valor:
+          type: number
+    Empresa:
+      type: object
+      properties:
+        ID:
+          type: integer
+        Nome:
+          type: string
+        CNPJ:
+          type: string
+    Funcionario:
+      type: object
+      properties:
+        ID:
+          type: integer
+        nome:
+          type: string
+        cargo:
+          type: string
+        login:
+          type: string
+        Ativo:
+          type: boolean
+    FuncionarioCreate:
+      type: object
+      properties:
+        nome:
+          type: string
+        cargo:
+          type: string
+        login:
+          type: string
+        senha:
+          type: string
+    FuncionarioUpdate:
+      type: object
+      properties:
+        nome:
+          type: string
+        cargo:
+          type: string
+        login:
+          type: string
+        senha:
+          type: string
+        Ativo:
+          type: boolean
+    ContatoCreate:
+      type: object
+      properties:
+        nome:
+          type: string
+        telefone:
+          type: string
+        email:
+          type: string
+        origem:
+          type: string
+    ContatoUpdate:
+      type: object
+      properties:
+        nome:
+          type: string
+        telefone:
+          type: string
+        email:
+          type: string
+        origem:
+          type: string
+    OrcamentoCreate:
+      type: object
+      properties:
+        IDContato:
+          type: integer
+        IDStatusOrcamento:
+          type: integer
+        IDFuncionario:
+          type: integer
+        NumeroOrcamento:
+          type: string
+        DataSolicitacao:
+          type: string
+          format: date
+        NecessitaProjeto:
+          type: boolean
+        NecessitaVisita:
+          type: boolean
+        Observacao:
+          type: string
+        Valor:
+          type: number
+        DataEntregaOrcamento:
+          type: string
+          format: date
+        IDEmpresa:
+          type: integer
+    OrcamentoUpdate:
+      type: object
+      properties:
+        Observacao:
+          type: string
+        Valor:
+          type: number
+        DataFechamento:
+          type: string
+          format: date
+    AmbienteCreate:
+      type: object
+      properties:
+        IDOrcamento:
+          type: integer
+        Nome:
+          type: string
+        Valor:
+          type: number
+    AmbienteUpdate:
+      type: object
+      properties:
+        Nome:
+          type: string
+        Valor:
+          type: number
+    VisitaCreate:
+      type: object
+      properties:
+        IDOrcamento:
+          type: integer
+        IDStatus:
+          type: integer
+        DataAgendada:
+          type: string
+          format: date
+    VisitaUpdate:
+      type: object
+      properties:
+        DataRealizada:
+          type: string
+          format: date
+        Observacao:
+          type: string
+    ProjetoCreate:
+      type: object
+      properties:
+        IDOrcamento:
+          type: integer
+        IDStatus:
+          type: integer
+        NomeProjeto:
+          type: string
+    ProjetoUpdate:
+      type: object
+      properties:
+        NomeProjeto:
+          type: string
+        DataConclusao:
+          type: string
+          format: date
+    EmpresaCreate:
+      type: object
+      properties:
+        Nome:
+          type: string
+        CNPJ:
+          type: string
+    EmpresaUpdate:
+      type: object
+      properties:
+        Nome:
+          type: string
+        CNPJ:
+          type: string
+    ArquivoCreate:
+      type: object
+      properties:
+        IDOrcamento:
+          type: integer
+        NomeArquivo:
+          type: string
+        Caminho:
+          type: string
+        Tipo:
+          type: string
+    ProspeccaoCreate:
+      type: object
+      properties:
+        IDFuncionario:
+          type: integer
+        NomeProspecto:
+          type: string
+        Telefone:
+          type: string
+        Origem:
+          type: string
+        IDContato:
+          type: integer
+        Status:
+          type: string
+    ProspeccaoUpdate:
+      type: object
+      properties:
+        NomeProspecto:
+          type: string
+        Telefone:
+          type: string
+        Origem:
+          type: string
+        Status:
+          type: string
+    HistoricoProspeccaoCreate:
+      type: object
+      properties:
+        TipoAcao:
+          type: string
+        Observacao:
+          type: string
+        ProximoContato:
+          type: string
+          format: date
