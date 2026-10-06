@@ -59,7 +59,7 @@ paths:
 
   /funcionarios:
     post:
-      summary: Criar funcionário
+      summary: Criar funcionário (somente administrador; o primeiro funcionário do sistema dispensa login e vira administrador)
       security:
         - bearerAuth: []
       requestBody:
@@ -72,7 +72,7 @@ paths:
         '201':
           description: Funcionário criado
     get:
-      summary: Listar funcionários
+      summary: Listar funcionários (qualquer usuário autenticado; nunca retorna senha)
       security:
         - bearerAuth: []
       responses:
@@ -94,7 +94,7 @@ paths:
         '200':
           description: Funcionário
     put:
-      summary: Atualizar funcionário
+      summary: Atualizar funcionário, redefinir senha, inativar ou mudar perfil (somente administrador)
       security:
         - bearerAuth: []
       parameters:
@@ -111,6 +111,31 @@ paths:
       responses:
         '204':
           description: Atualizado
+        '400':
+          description: Dado inválido, ou tentativa de remover o último/próprio administrador
+        '403':
+          description: Usuário não é administrador
+        '409':
+          description: Login já em uso
+    delete:
+      summary: Excluir funcionário (somente administrador)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Excluído
+        '400':
+          description: Não é possível excluir a si mesmo ou o último administrador
+        '403':
+          description: Usuário não é administrador
+        '409':
+          description: Funcionário com registros vinculados; deve ser inativado
 
   /contatos:
     post:
@@ -207,7 +232,7 @@ paths:
         '200':
           description: Orçamento
     put:
-      summary: Atualizar orçamento
+      summary: Atualizar orçamento (campos camelCase; ambientes substitui a lista; status Fechado gera o cliente)
       security:
         - bearerAuth: []
       requestBody:
@@ -218,6 +243,103 @@ paths:
       responses:
         '204':
           description: Atualizado
+
+  /orcamentos/{id}/arquivos:
+    post:
+      summary: Enviar arquivo do briefing/projeto (multipart, até 15 MB; jpg, png, webp, gif, pdf, dwg, dxf, skp, doc(x), xls(x), zip)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                arquivo:
+                  type: string
+                  format: binary
+                tipo:
+                  type: string
+                  enum: [briefing_inspiracao, projeto_tecnico]
+      responses:
+        '201':
+          description: Arquivo salvo
+        '400':
+          description: Tipo de arquivo não permitido ou arquivo ausente
+        '404':
+          description: Orçamento não encontrado
+        '413':
+          description: Arquivo maior que 15 MB
+    get:
+      summary: Listar arquivos do orçamento
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Lista de arquivos
+  /arquivos/{id}/download:
+    get:
+      summary: Baixar arquivo enviado
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Conteúdo do arquivo
+        '404':
+          description: Arquivo não encontrado
+  /dashboard/agenda:
+    get:
+      summary: Próximos contatos pendentes e visitas pendentes/agendadas
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Objeto com proximosContatos e visitas
+  /clientes:
+    get:
+      summary: Listar clientes (contatos que fecharam orçamento)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Lista de clientes com contato, endereço e total de orçamentos
+  /clientes/{id}:
+    put:
+      summary: Atualizar dados do cliente, contato e endereço (campos vazios viram nulos; UF com 2 letras)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Atualizado
+        '400':
+          description: Cidade/UF inválidas
+        '409':
+          description: CPF/CNPJ já cadastrado
 
   /orcamentos/{id}/status:
     patch:
@@ -706,6 +828,9 @@ components:
           type: string
         login:
           type: string
+        Perfil:
+          type: string
+          enum: [admin, funcionario]
         Ativo:
           type: boolean
     FuncionarioCreate:
@@ -719,6 +844,10 @@ components:
           type: string
         senha:
           type: string
+          minLength: 6
+        perfil:
+          type: string
+          enum: [admin, funcionario]
     FuncionarioUpdate:
       type: object
       properties:
@@ -730,7 +859,12 @@ components:
           type: string
         senha:
           type: string
-        Ativo:
+          minLength: 6
+          description: Opcional; quando informada, redefine a senha
+        perfil:
+          type: string
+          enum: [admin, funcionario]
+        ativo:
           type: boolean
     ContatoCreate:
       type: object
@@ -759,6 +893,9 @@ components:
       properties:
         IDContato:
           type: integer
+        idProspeccao:
+          type: integer
+          description: Prospecção que originou o orçamento. Ao criar, ela passa a Convertido e fica vinculada (409 se já gerou orçamento).
         IDStatusOrcamento:
           type: integer
         IDFuncionario:
@@ -844,18 +981,61 @@ components:
           format: date
     EmpresaCreate:
       type: object
+      description: Somente administrador (403 para funcionário).
+      required: [Codigo, Nome]
       properties:
+        Codigo:
+          type: string
         Nome:
           type: string
         CNPJ:
           type: string
+        Endereco:
+          type: string
+        Bairro:
+          type: string
+        Cidade:
+          type: string
+        CEP:
+          type: string
+        Telefone:
+          type: string
+        Whatsapp:
+          type: string
+        Email:
+          type: string
+        EmailFinanceiro:
+          type: string
+        Responsavel:
+          type: string
+          description: Quem assina o contrato pela empresa
     EmpresaUpdate:
       type: object
+      description: Somente administrador (403 para funcionário).
       properties:
         Nome:
           type: string
         CNPJ:
           type: string
+        Endereco:
+          type: string
+        Bairro:
+          type: string
+        Cidade:
+          type: string
+        CEP:
+          type: string
+        Telefone:
+          type: string
+        Whatsapp:
+          type: string
+        Email:
+          type: string
+        EmailFinanceiro:
+          type: string
+        Responsavel:
+          type: string
+          description: Quem assina o contrato pela empresa
     ArquivoCreate:
       type: object
       properties:
@@ -869,30 +1049,39 @@ components:
           type: string
     ProspeccaoCreate:
       type: object
+      required: [idFuncionario, idEmpresa, nomeProspecto]
       properties:
-        IDFuncionario:
+        idFuncionario:
           type: integer
-        NomeProspecto:
-          type: string
-        Telefone:
-          type: string
-        Origem:
-          type: string
-        IDContato:
+        idEmpresa:
           type: integer
-        Status:
+        nomeProspecto:
           type: string
+        telefone:
+          type: string
+        origem:
+          type: string
+        status:
+          type: string
+          enum: [Em andamento, Perdido]
+          description: 'Convertido só é definido ao gerar o orçamento (POST /orcamentos com idProspeccao).'
     ProspeccaoUpdate:
       type: object
+      description: Prospecção convertida não pode mudar de status (409). Status "Convertido" manual retorna 400.
       properties:
-        NomeProspecto:
+        idFuncionario:
+          type: integer
+        idEmpresa:
+          type: integer
+        nomeProspecto:
           type: string
-        Telefone:
+        telefone:
           type: string
-        Origem:
+        origem:
           type: string
-        Status:
+        status:
           type: string
+          enum: [Em andamento, Perdido]
     HistoricoProspeccaoCreate:
       type: object
       properties:

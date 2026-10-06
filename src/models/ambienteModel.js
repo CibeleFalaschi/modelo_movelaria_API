@@ -2,8 +2,8 @@ const pool = require('../database/connection');
 const table = 'Ambiente';
 
 async function create(amb) {
-  const { IDOrcamento, Nome, Valor } = amb;
-  const [result] = await pool.query(`INSERT INTO ${table} (IDOrcamento, Nome, Valor) VALUES (?, ?, ?)`, [IDOrcamento, Nome, Valor]);
+  const { IDOrcamento, Nome, Valor, Observacao = null } = amb;
+  const [result] = await pool.query(`INSERT INTO ${table} (IDOrcamento, Nome, Valor, Observacao) VALUES (?, ?, ?, ?)`, [IDOrcamento, Nome, Valor, Observacao]);
   return { ID: result.insertId };
 }
 
@@ -15,7 +15,7 @@ async function findById(id) {
 async function update(id, data) {
   const fields = [];
   const values = [];
-  for (const k of ['IDOrcamento','Nome','Valor']) {
+  for (const k of ['IDOrcamento','Nome','Valor','Observacao']) {
     if (data[k] !== undefined) { fields.push(`${k} = ?`); values.push(data[k]); }
   }
   if (fields.length === 0) return;

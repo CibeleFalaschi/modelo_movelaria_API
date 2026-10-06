@@ -1,13 +1,13 @@
 const orcamentoService = require('../services/orcamentoService');
 const statusModel = require('../models/statusModel');
+const arquivoModel = require('../models/arquivoModel');
+const fs = require('fs');
+const path = require('path');
+const { uploadRoot } = require('../middlewares/upload');
 
 async function create(req, res, next) {
   try {
-    const payload = req.body;
-    if (!payload.IDContato || !payload.IDStatusOrcamento || !payload.IDFuncionario || !payload.NumeroOrcamento || payload.Valor === undefined || !payload.DataSolicitacao) {
-      return res.status(400).json({ error: 'Campos obrigatórios ausentes' });
-    }
-    const result = await orcamentoService.createOrcamento(payload);
+    const result = await orcamentoService.createOrcamento(req.body);
     res.status(201).json(result);
   } catch (err) { next(err); }
 }
@@ -53,4 +53,33 @@ async function patchStatus(req, res, next) {
   } catch (err) { next(err); }
 }
 
-module.exports = { create, list, getById, update, patchStatus };
+async function uploadArquivo(req, res, next) {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado' });
+    const orcamento = await orcamentoService.getOrcamentoById(req.params.id);
+    if (!orcamento) {
+      fs.unlink(req.file.path, () => {});
+      return res.status(404).json({ error: 'Orçamento não encontrado' });
+    }
+    const tipo = ['briefing_inspiracao', 'projeto_tecnico'].includes(req.body.tipo) ? req.body.tipo : 'briefing_inspiracao';
+    // multer entrega o nome original em latin1; converte para UTF-8 (acentos).
+    const nome = Buffer.from(req.file.originalname, 'latin1').toString('utf8').slice(0, 255);
+    const result = await arquivoModel.create({
+      IDOrcamento: Number(req.params.id), NomeArquivo: nome,
+      Caminho: path.relative(uploadRoot, req.file.path).split(path.sep).join('/'), Tipo: tipo
+    });
+    res.status(201).json({ id: result.ID, nome, tipo });
+  } catch (err) {
+    if (req.file) fs.unlink(req.file.path, () => {});
+    next(err);
+  }
+}
+
+async function listArquivos(req, res, next) {
+  try {
+    const rows = await arquivoModel.listByOrcamento(req.params.id);
+    res.json(rows.map((a) => ({ id: a.ID, nome: a.NomeArquivo, tipo: a.Tipo, dataUpload: a.DataUpload })));
+  } catch (err) { next(err); }
+}
+
+module.exports = { create, list, getById, update, patchStatus, uploadArquivo, listArquivos };

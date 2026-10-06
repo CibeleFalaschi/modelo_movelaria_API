@@ -10,7 +10,7 @@ async function listAll() {
   const result = {};
 
   for (const [resource, table] of Object.entries(statusTables)) {
-    const [rows] = await pool.query(`SELECT ID, descricao FROM ${table} ORDER BY ID`);
+    const [rows] = await pool.query(`SELECT ID, codigo, descricao FROM ${table} ORDER BY ID`);
     result[resource] = rows;
   }
 

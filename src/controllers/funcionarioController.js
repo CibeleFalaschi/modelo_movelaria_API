@@ -1,122 +1,104 @@
-const funcionarioService = require('../services/funcionarioService');
 const bcrypt = require('bcrypt');
-const jwt = require('jsonwebtoken');
+const funcionarioModel = require('../models/funcionarioModel');
+
+const PERFIS = ['admin', 'funcionario'];
+
+function erro(status, message) {
+  return Object.assign(new Error(message), { status });
+}
+
+function validarSenha(senha) {
+  if (typeof senha !== 'string' || senha.length < 6) throw erro(400, 'A senha deve ter ao menos 6 caracteres');
+}
+
+function validarLogin(login) {
+  if (!/^[A-Za-z0-9._-]{3,50}$/.test(login || '')) throw erro(400, 'Login deve ter de 3 a 50 caracteres (letras, números, ponto, hífen ou _)');
+}
 
 async function create(req, res, next) {
   try {
     const { nome, cargo, login, senha } = req.body;
+    if (!nome || !login || !senha) throw erro(400, 'nome, login e senha são obrigatórios');
+    validarLogin(login);
+    validarSenha(senha);
+    if (await funcionarioModel.findByLogin(login)) throw erro(409, 'Login já está em uso');
 
-    if (!nome || !login || !senha) {
-      return res.status(400).json({
-        error: 'nome, login e senha são obrigatórios'
-      });
-    }
+    // O primeiro funcionário do sistema é sempre administrador.
+    const primeiro = await funcionarioModel.count() === 0;
+    const perfil = primeiro ? 'admin' : (req.body.perfil || 'funcionario');
+    if (!PERFIS.includes(perfil)) throw erro(400, 'Perfil inválido');
 
-    // Verifica se já existe um usuário com este login
-    const existingUser = await funcionarioService.getByLogin(login);
-
-    if (existingUser) {
-      return res.status(409).json({
-        error: 'Login já está em uso'
-      });
-    }
-
-    // Verifica se o administrador já existe
-    const admin = await funcionarioService.getByLogin('admin');
-
-    // Se o admin já existir, exige JWT para criar novos funcionários
-    if (admin) {
-      const authHeader = req.headers.authorization;
-
-      if (!authHeader) {
-        return res.status(401).json({
-          error: 'Authorization required to create funcionario'
-        });
-      }
-
-      const parts = authHeader.split(' ');
-
-      if (
-        parts.length !== 2 ||
-        !/^Bearer$/i.test(parts[0])
-      ) {
-        return res.status(401).json({
-          error: 'Invalid Authorization header'
-        });
-      }
-
-      const token = parts[1];
-
-      try {
-        jwt.verify(token, process.env.JWT_SECRET);
-      } catch (e) {
-        return res.status(401).json({
-          error: 'Invalid or expired token'
-        });
-      }
-    }
-
-    const senhaHash = await bcrypt.hash(senha, 10);
-
-    const result = await funcionarioService.createFuncionario({
-      nome,
-      cargo,
-      login,
-      senhaHash
-    });
-
+    const result = await funcionarioModel.create({ nome, cargo, login, senhaHash: await bcrypt.hash(senha, 10), Perfil: perfil });
     res.status(201).json(result);
-
-  } catch (err) {
-    next(err);
-  }
+  } catch (err) { next(err); }
 }
 
 async function list(req, res, next) {
-  try {
-    const rows = await funcionarioService.listFuncionarios();
-    res.json(rows);
-  } catch (err) {
-    next(err);
-  }
+  try { res.json(await funcionarioModel.list()); } catch (err) { next(err); }
 }
 
 async function getById(req, res, next) {
   try {
-    const id = req.params.id;
-    const user = await funcionarioService.getById(id);
-
-    if (!user) {
-      return res.status(404).json({
-        error: 'Not found'
-      });
-    }
-
+    const user = await funcionarioModel.findById(req.params.id);
+    if (!user) return res.status(404).json({ error: 'Not found' });
     res.json(user);
+  } catch (err) { next(err); }
+}
 
-  } catch (err) {
-    next(err);
-  }
+// Nunca deixa o sistema sem administrador ativo, nem o admin se bloquear.
+async function protegerAdmin(alvo, novo, adminLogado) {
+  const perdeAdmin = alvo.Perfil === 'admin' && alvo.Ativo
+    && ((novo.Perfil !== undefined && novo.Perfil !== 'admin') || (novo.Ativo !== undefined && !novo.Ativo));
+  if (!perdeAdmin) return;
+  if (alvo.ID === adminLogado.ID) throw erro(400, 'Você não pode remover seu próprio acesso de administrador');
+  if (await funcionarioModel.countAdminsAtivos() <= 1) throw erro(400, 'É preciso manter ao menos um administrador ativo');
 }
 
 async function update(req, res, next) {
   try {
-    const id = req.params.id;
-    const data = req.body;
+    const id = Number(req.params.id);
+    const alvo = await funcionarioModel.findById(id);
+    if (!alvo) throw erro(404, 'Funcionário não encontrado');
 
-    if (data.senha) {
-      data.senhaHash = await bcrypt.hash(data.senha, 10);
+    const { nome, cargo, login, senha, perfil, ativo } = req.body;
+    const data = {};
+    if (nome !== undefined) { if (!String(nome).trim()) throw erro(400, 'Nome é obrigatório'); data.nome = String(nome).trim(); }
+    if (cargo !== undefined) data.cargo = cargo || null;
+    if (login !== undefined && login !== alvo.login) {
+      validarLogin(login);
+      if (await funcionarioModel.findByLogin(login)) throw erro(409, 'Login já está em uso');
+      data.login = login;
     }
+    if (perfil !== undefined) {
+      if (!PERFIS.includes(perfil)) throw erro(400, 'Perfil inválido');
+      data.Perfil = perfil;
+    }
+    if (ativo !== undefined) data.Ativo = ativo ? 1 : 0;
+    if (senha) { validarSenha(senha); data.senhaHash = await bcrypt.hash(senha, 10); }
 
-    delete data.senha;
-
-    await funcionarioService.updateFuncionario(id, data);
-
+    await protegerAdmin(alvo, data, req.admin);
+    await funcionarioModel.update(id, data);
     res.status(204).end();
-
-  } catch (err) {
-    next(err);
-  }
+  } catch (err) { next(err); }
 }
 
-module.exports = { create, list, getById, update };
+async function remove(req, res, next) {
+  try {
+    const id = Number(req.params.id);
+    const alvo = await funcionarioModel.findById(id);
+    if (!alvo) throw erro(404, 'Funcionário não encontrado');
+    if (alvo.ID === req.admin.ID) throw erro(400, 'Você não pode excluir a si mesmo');
+    await protegerAdmin(alvo, { Ativo: 0 }, req.admin);
+    try {
+      await funcionarioModel.remove(id);
+    } catch (e) {
+      if (e.code === 'ER_ROW_IS_REFERENCED_2') {
+        throw erro(409, 'Este funcionário possui orçamentos ou prospecções vinculados e não pode ser excluído. Deixe-o inativo.');
+      }
+      throw e;
+    }
+    res.status(204).end();
+  } catch (err) { next(err); }
+}
+
+module.exports = { create, list, getById, update, remove };

@@ -16,7 +16,7 @@ Observação: os endpoints estão agrupados por recurso. Para detalhes de parâm
 - 204 No Content — atualização ou deleção bem-sucedida sem conteúdo de retorno (PUT, PATCH, DELETE quando não retornam o recurso atualizado).
 - 400 Bad Request — dados inválidos ou campos obrigatórios ausentes.
 - 401 Unauthorized — autenticação ausente ou inválida (token inválido/expirado).
-- 403 Forbidden — não utilizado atualmente (sem regras de autorização por papéis implementadas).
+- 403 Forbidden — usuário autenticado sem permissão (ações restritas ao perfil `admin`: gerenciar funcionários e alterar empresas).
 - 404 Not Found — recurso não encontrado.
 - 409 Conflict — utilizado quando houver conflito lógico (não aplicado em muitos pontos atualmente).
 - 500 Internal Server Error — erro inesperado do servidor.
@@ -77,6 +77,7 @@ Observação: os endpoints estão agrupados por recurso. Para detalhes de parâm
   - 204 No Content em sucesso.
 
 ### /orcamentos
+- POST com `idProspeccao`: converte a prospecção (ver /prospeccoes). 400 se a prospecção não existir; 409 se ela já gerou orçamento.
 - POST /orcamentos
   - Requer JWT.
   - Campos obrigatórios: `IDContato`, `IDStatusOrcamento`, `IDFuncionario`, `NumeroOrcamento`, `Valor`, `DataSolicitacao`.
@@ -140,10 +141,12 @@ Observação: os endpoints estão agrupados por recurso. Para detalhes de parâm
 - PATCH /projetos/{id}/status — 204 No Content
 
 ### /empresas
-- POST /empresas — 201 Created
+- Os dados impressos no contrato (endereço, contatos, CNPJ, responsável) ficam na tabela `Empresa`, nunca no código.
+  Os valores reais são carregados a partir de `resources/empresas.local.sql` (ignorado pelo Git).
+- POST /empresas — 201 Created; 400 sem `Codigo`/`Nome`; 403 se não for administrador
 - GET /empresas — 200 OK
 - GET /empresas/{id} — 200 OK / 404
-- PUT /empresas/{id} — 204 No Content
+- PUT /empresas/{id} — 204 No Content; 403 se não for administrador
 
 ### /arquivos
 - POST /arquivos — 201 Created (apenas metadados)
@@ -153,10 +156,18 @@ Observação: os endpoints estão agrupados por recurso. Para detalhes de parâm
 - DELETE /arquivos/{id} — 204 No Content
 
 ### /prospeccoes
-- POST /prospeccoes — 201 Created
-- GET /prospeccoes — 200 OK
+Regra de negócio: prospecção é a busca ativa do vendedor por novos clientes. Ela só vira **orçamento** quando a
+pessoa aceita e envia as informações para cotação; o contato só vira **cliente** quando fecha o serviço.
+
+- Toda prospecção pertence a uma empresa e a um vendedor.
+- O status `Convertido` não é escolhido manualmente: é definido quando um orçamento é criado com `idProspeccao`
+  (POST /orcamentos). Na mesma transação a prospecção recebe `IDContato` e `IDOrcamento`.
+- Uma prospecção gera no máximo um orçamento; depois de convertida, o status não pode mais mudar.
+
+- POST /prospeccoes — 201 Created; 400 sem nome, empresa ou vendedor; 400 se enviar status `Convertido`
+- GET /prospeccoes — 200 OK (inclui `empresa`, `funcionario` e `idOrcamento`)
 - GET /prospeccoes/{id} — 200 OK / 404
-- PUT /prospeccoes/{id} — 204 No Content
+- PUT /prospeccoes/{id} — 204 No Content; 404 se não existir; 400 se tentar marcar `Convertido`; 409 se já convertida e tentar mudar o status
 - POST /prospeccoes/{id}/historico — 201 Created
 - GET /prospeccoes/{id}/historico — 200 OK
 
@@ -166,6 +177,6 @@ Observação: os endpoints estão agrupados por recurso. Para detalhes de parâm
 
 ## Observações finais
 - Os status codes usados nos controllers foram padronizados conforme acima. Caso identifique um endpoint com comportamento diferente do documentado, informe qual rota para que eu corrija o controller.
-- Erros e exceções não tratadas caem no handler central (`app.js`) que retorna `500 Internal Server Error` com a mensagem do erro.
+- Erros e exceções não tratadas caem no handler central (`app.js`), que retorna `500 Internal Server Error` com a mensagem genérica `Erro interno do servidor` (detalhes só no log do servidor).
 
 Arquivo mantido em `resources/business_rules.md` e referenciado no `README.md`.

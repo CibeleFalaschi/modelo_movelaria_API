@@ -9,6 +9,8 @@ const pool = mysql.createPool({
   password: process.env.DB_PASSWORD || '',
   database: process.env.DB_NAME || 'modelo_movelaria',
   waitForConnections: true,
+  // Colunas DATE voltam como 'YYYY-MM-DD' (sem virar Date/UTC, o que deslocava o dia no JSON).
+  dateStrings: ['DATE'],
   connectionLimit: 10,
   queueLimit: 0
 });
