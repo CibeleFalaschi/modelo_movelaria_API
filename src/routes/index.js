@@ -12,6 +12,8 @@ const empresasRoutes = require('./empresas');
 const arquivosRoutes = require('./arquivos');
 const prospeccoesRoutes = require('./prospeccoes');
 const statusesRoutes = require('./statuses');
+const clientesRoutes = require('./clientes');
+const dashboardRoutes = require('./dashboard');
 
 router.use('/auth', authRoutes);
 router.use('/funcionarios', funcionariosRoutes);
@@ -24,5 +26,7 @@ router.use('/empresas', empresasRoutes);
 router.use('/arquivos', arquivosRoutes);
 router.use('/prospeccoes', prospeccoesRoutes);
 router.use('/statuses', statusesRoutes);
+router.use('/clientes', clientesRoutes);
+router.use('/dashboard', dashboardRoutes);
 
 module.exports = router;

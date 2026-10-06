@@ -4,6 +4,10 @@ async function getByLogin(login) {
   return funcionarioModel.findByLogin(login);
 }
 
+async function count() {
+  return funcionarioModel.count();
+}
+
 async function getById(id) {
   return funcionarioModel.findById(id);
 }
@@ -21,6 +25,7 @@ async function listFuncionarios() {
 }
 
 module.exports = {
+  count,
   getByLogin,
   getById,
   createFuncionario,

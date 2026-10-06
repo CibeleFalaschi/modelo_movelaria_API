@@ -7,6 +7,6 @@ async function create(h) {
   return { ID: result.insertId };
 }
 
-async function listByProspeccao(id) { const [rows] = await pool.query(`SELECT * FROM ${table} WHERE IDProspeccao = ?`, [id]); return rows; }
+async function listByProspeccao(id) { const [rows] = await pool.query(`SELECT * FROM ${table} WHERE IDProspeccao = ? ORDER BY ID DESC`, [id]); return rows; }
 
 module.exports = { create, listByProspeccao };

@@ -10,3 +10,9 @@ npm-debug.log
 .env.*
 !.env.example
 .env
+
+# Anexos enviados pelos usuários (dados de clientes)
+uploads/
+
+# Dados reais das empresas (preenchidos a partir de resources/empresas.exemplo.sql)
+*.local.sql

@@ -86,25 +86,28 @@ Regras de segurança e observações
 - A autenticação JWT é aplicada via middleware `src/middlewares/auth.js`.
 - As rotas `PATCH /orcamentos/{id}/status`, `PATCH /visitas/{id}/status` e `PATCH /projetos/{id}/status` validam o status informado e retornam o registro atualizado (`200 OK`), facilitando a atualização imediata da interface.
 
-Inconsistências e observações no `resources/banco_movelaria.sql`
-- A tabela `Orcamento` é criada sem a coluna `IDEmpresa`, mas em seguida o arquivo usa `ALTER TABLE Orcamento ADD CONSTRAINT FK_Orcamento_Empresa FOREIGN KEY (IDEmpresa) REFERENCES Empresa(ID)` — coluna ausente causa erro se o SQL for executado sem ajustes.
-- O arquivo adiciona a constraint `FK_Orcamento_Empresa` duas vezes em pontos diferentes.
-- O arquivo adiciona a constraint `UK_Orcamento_NumeroEmpresa` duas vezes também.
-- Há várias operações `ALTER TABLE Cliente` adicionando colunas (`CodigoCliente`, `IDEmpresa`, `DataCadastro`, `RG`) que são aplicadas depois do CREATE TABLE; é funcional se aplicadas sequencialmente, mas pode conter duplicações se executado mais de uma vez.
-- Recomendo revisar e normalizar o arquivo SQL antes de executá-lo em um ambiente de produção.
+Banco de dados
+- `resources/banco_movelaria.sql` é a **fonte oficial** do schema (o repositório do frontend guarda uma cópia idêntica). Ele cria o banco `modelo_movelaria`, os status padrão e as empresas Apparato e Signore. Execute-o em uma base nova e faça backup antes de qualquer atualização.
+- Perfis: `Funcionario.Perfil` é `admin` ou `funcionario`. Só o administrador cria, edita, inativa e exclui funcionários (`/api/funcionarios`). O primeiro funcionário criado no sistema vira administrador.
+- Senhas ficam somente como hash bcrypt; o administrador pode redefini-las, mas nunca consultá-las.
+- **Dados reais das empresas** (endereço, telefone, e-mails, CNPJ e responsável, impressos no contrato) ficam só no banco.
+  Copie `resources/empresas.exemplo.sql` para `resources/empresas.local.sql`, preencha e execute-o no banco.
+  Arquivos `*.local.sql` são ignorados pelo Git e nunca são publicados.
+- **Banco criado antes de 05/10/2026:** execute uma vez `resources/migracoes/2026-10-05_dados_empresa_e_prospeccao.sql`
+  (adiciona os dados de contrato da empresa e o vínculo prospecção → empresa/orçamento).
 
+Primeiro acesso
+1. Preencha `ADMIN_NAME`, `ADMIN_LOGIN` e `ADMIN_PASSWORD` no `.env` e rode `npm run create-admin` (cria o administrador ou redefine a senha dele).
+2. Para servir o frontend pela própria API, defina `FRONTEND_DIR=../modelo_movelaria` no `.env`.
+3. Arquivos enviados no briefing ficam em `uploads/` (ou em `UPLOAD_DIR`); inclua a pasta no backup.
+
+Melhorias futuras
 - Adicionar testes automatizados.
-- Implementar controle de permissões mais fino (roles) se necessário.
-- Implementar upload físico de arquivos (s3/local) se o front exigir.
-- Habilitar migrações gerenciadas (e.g., Knex, Sequelize migrations) para controlar alterações no banco.
+- Limitar tentativas de login e definir níveis de permissão além do administrador.
+- Habilitar migrações gerenciadas (ex.: Knex) para controlar alterações no banco.
 
 Arquivo de regras de negócio
 - Veja `resources/business_rules.md` para o documento completo de regras de negócio e os status codes usados por cada endpoint.
-
-- Adicionar testes automatizados.
-- Implementar controle de permissões mais fino (roles) se necessário.
-- Implementar upload físico de arquivos (s3/local) se o front exigir.
-- Habilitar migrações gerenciadas (e.g., Knex, Sequelize migrations) para controlar alterações no banco.
 
 Problemas conhecidos ao iniciar
 - Certifique-se de definir `JWT_SECRET` em `.env` antes de usar endpoints autenticados — o servidor retornará erro 500 se estiver ausente.
